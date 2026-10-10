@@ -20,7 +20,12 @@ dataset/
 
 Dataset files are intentionally excluded from Git. Place the official full
 `KDDTrain+` and `KDDTest+` text files at the paths above before running the
-pipeline; `.arff` copies and smaller subsets are not used.
+pipeline; `.arff` copies and smaller subsets are not used. NSL-KDD is a
+benchmark associated with the Canadian Institute for Cybersecurity at the
+University of New Brunswick. This repository does not redistribute the data
+or provide an unverified download URL. Obtain the official files from an
+authorized dataset source and check its current access and reuse terms; place
+the files at the exact paths shown above.
 
 Each row contains 41 connection features, an attack label, and a difficulty
 score. The difficulty score is excluded from model input. The three categorical
@@ -47,42 +52,68 @@ individual attack names.
 
 ## Setup
 
-Requires Python 3.11 or later and [uv](https://docs.astral.sh/uv/). The
-following PowerShell commands create the project environment using Python 3.12
-and install dependencies from `pyproject.toml`/`uv.lock`:
+Requires Python 3.11 or later and [uv](https://docs.astral.sh/uv/). From the
+repository root, these PowerShell commands create a Python 3.12 environment
+and install dependencies from `pyproject.toml` and the tracked `uv.lock`:
 
 ```powershell
 uv venv --python 3.12
-uv sync --extra notebook
+uv sync --locked --extra notebook
 ```
 
-The dataset and generated model/report artifacts are not tracked. For a fresh
-checkout, first place the official dataset files under `dataset/NSL-KDD/`, then
-generate the baseline artifacts:
+### Minimum setup for the demo
+
+The demo needs these generated baseline artifacts:
+
+```text
+artifacts/models/random_forest.joblib
+artifacts/attack_type_model/random_forest_attack_type.joblib
+artifacts/feature_selection/selected_features.json
+```
+
+They are produced by the complete baseline pipeline below. The **Load training
+sample** button also needs `dataset/NSL-KDD/KDDTrain+.txt`; without it, a
+reviewer can enter a record manually. The demo does not need `KDDTest+.txt`,
+candidate artifacts, or experiment reports.
+
+### Reproduce the baseline and candidate evaluation
+
+Dataset files and generated artifacts are not tracked. For a fresh checkout,
+first obtain and place both official dataset files as described above. Run the
+complete baseline pipeline to read the official split, create processed
+datasets and feature manifest, train the baseline models, and generate baseline
+evaluation artifacts:
 
 ```powershell
 .\.venv\Scripts\python.exe -m nsl_kdd_ids.pipeline --step all
 ```
 
-The artifact-consistency tests also inspect the saved grouped candidate and
-experiment reports. Generate those with the controlled experiment command
-after the baseline pipeline:
+The full test suite also inspects the baseline predictions and saved
+grouped-candidate artifacts. Generate the candidate models and reliable
+comparison report after the baseline pipeline:
 
 ```powershell
 .\.venv\Scripts\python.exe -m nsl_kdd_ids.pipeline --step experiment
 ```
 
-Run the tests and local demo with:
+`--step experiment` selects using a validation split from `KDDTrain+` and then
+evaluates the finalized baseline/candidate on the official test split for
+reporting. Never use those test results to tune or select models.
+
+To regenerate the training-only grouped-validation reports as well, run these
+optional commands; they use `KDDTrain+` only:
+
+```powershell
+.\.venv\Scripts\python.exe -m nsl_kdd_ids.pipeline --step repeated-validation
+.\.venv\Scripts\python.exe -m nsl_kdd_ids.pipeline --step nested-validation
+```
+
+After generating the required artifacts, run the tests and launch the demo:
 
 ```powershell
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 .\.venv\Scripts\python.exe -m nsl_kdd_ids.demo
 ```
-
-The demo needs the generated baseline model artifacts; it does not need the
-candidate models. `--step experiment` evaluates the finalized candidate on the
-official test split for reporting, but model/threshold choices are made from
-training data only. Do not use test results to tune or select models.
 
 The full pipeline can take a few minutes, depending on the computer. K-Nearest
 Neighbors uses a deterministic, stratified sample of at most 25,000 training
@@ -353,9 +384,9 @@ validation score near 99.9% is not an estimate of performance on unseen attack
 names.
 
 The experiment JSON/CSV reports and model artifacts live under `artifacts/`,
-which is ignored by Git. They are preserved in the current working copy but
-are not present in a fresh clone; regenerate them using the commands in Setup
-before attempting to reproduce the artifact-dependent test suite.
+which is ignored by Git. They are not present in a fresh clone; regenerate
+them with the Setup commands before running the full artifact-dependent test
+suite. Reports are reproducible outputs, not checked-in inputs.
 
 ## Repository structure
 
