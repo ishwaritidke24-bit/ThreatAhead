@@ -1,0 +1,21 @@
+[project]
+name = "threatahead"
+version = "0.1.0"
+description = "ThreatAhead: Machine learning-based network intrusion detection and attack classification"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "joblib>=1.4",
+  "matplotlib>=3.9",
+  "numpy>=2.0",
+  "pandas>=2.2",
+  "pyarrow>=18",
+  "scikit-learn>=1.6",
+  "tqdm>=4.67",
+]
+
+[project.optional-dependencies]
+notebook = ["jupyter>=1.1"]
+
+[tool.uv]
+package = false
