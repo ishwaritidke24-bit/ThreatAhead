@@ -224,6 +224,33 @@ a family only when it is `Attack`. The actual synthetic prediction depends on
 the saved model artifacts. This interface is a reproducibility contract, not
 evidence of deployment readiness or real-world intrusion detection.
 
+## Run the local demo interface
+
+The demo uses only Python's standard library for its local HTTP server and the
+project's existing dependencies for model inference; no web framework is
+required. From the repository root, start it with:
+
+```powershell
+.\.venv\Scripts\python.exe -m nsl_kdd_ids.demo
+```
+
+Open `http://127.0.0.1:8501` in a browser. Use **Load training sample** to
+populate the form from the first record in `dataset/NSL-KDD/KDDTrain+.txt`, or
+enter all 41 features yourself; then choose **Classify record**. The interface
+validates all values and sends one JSON record to a local endpoint, which calls
+`predict_record(..., model_config="baseline")`. Model preprocessing, selected
+features, and prediction logic remain in the shared pipeline; the interface
+does not offer candidate selection, file uploads, or code execution. Stop the
+server with Ctrl+C.
+
+Architecture: browser form → loopback-only Python standard-library HTTP server
+→ feature validation → saved baseline `predict_record` contract → rendered
+binary decision and optional family. The sample endpoint reads the training
+file only; the official test file is not used by the demo. It is a single-record
+offline demonstration, not live traffic monitoring, an alerting service, or a
+security guarantee. A local prediction is only as representative as the
+NSL-KDD-derived model and its input data.
+
 ## Outputs
 
 Generated files are written to ignored directories:
