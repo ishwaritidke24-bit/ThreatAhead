@@ -305,8 +305,16 @@ class _DemoHandler(BaseHTTPRequestHandler):
         if path == "/api/sample":
             try:
                 self._send_json(200, load_training_sample())
-            except (FileNotFoundError, ValueError) as error:
-                self._send_json(503, {"error": str(error)})
+            except (FileNotFoundError, ValueError):
+                self._send_json(
+                    503,
+                    {
+                        "error": (
+                            "Training sample is unavailable or malformed. "
+                            "Check dataset/NSL-KDD/KDDTrain+.txt."
+                        )
+                    },
+                )
             return
         self._send_json(404, {"error": "Not found."})
 

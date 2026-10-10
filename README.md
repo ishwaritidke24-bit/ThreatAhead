@@ -18,15 +18,17 @@ dataset/
     └── KDDTest+.txt
 ```
 
-The provided `archive (4).zip` contained both files, and they have been
-extracted into `dataset/NSL-KDD/`. The archive also contains `.arff` copies,
-smaller subsets, and duplicate paths; those are not needed here. Only the
-official full train and test text files are used.
+Dataset files are intentionally excluded from Git. Place the official full
+`KDDTrain+` and `KDDTest+` text files at the paths above before running the
+pipeline; `.arff` copies and smaller subsets are not used.
 
 Each row contains 41 connection features, an attack label, and a difficulty
 score. The difficulty score is excluded from model input. The three categorical
 features (`protocol_type`, `service`, and `flag`) are one-hot encoded; numeric
 features are standardized inside each model pipeline using training data only.
+Random Forest feature importance selects 20 of the 41 inputs for the saved
+baseline models; that ordered feature list is stored with the model artifacts.
+The controlled candidate has its own feature selection and matching manifest.
 
 Attack labels are normalized to lowercase and mapped using the standard
 NSL-KDD families:
@@ -45,18 +47,42 @@ individual attack names.
 
 ## Setup
 
-Requires Python 3.11 or later. Install the project dependencies and notebook
-tools with [uv](https://docs.astral.sh/uv/):
+Requires Python 3.11 or later and [uv](https://docs.astral.sh/uv/). The
+following PowerShell commands create the project environment using Python 3.12
+and install dependencies from `pyproject.toml`/`uv.lock`:
 
 ```powershell
+uv venv --python 3.12
 uv sync --extra notebook
 ```
 
-The existing `.venv` can also be used directly:
+The dataset and generated model/report artifacts are not tracked. For a fresh
+checkout, first place the official dataset files under `dataset/NSL-KDD/`, then
+generate the baseline artifacts:
 
 ```powershell
 .\.venv\Scripts\python.exe -m nsl_kdd_ids.pipeline --step all
 ```
+
+The artifact-consistency tests also inspect the saved grouped candidate and
+experiment reports. Generate those with the controlled experiment command
+after the baseline pipeline:
+
+```powershell
+.\.venv\Scripts\python.exe -m nsl_kdd_ids.pipeline --step experiment
+```
+
+Run the tests and local demo with:
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+.\.venv\Scripts\python.exe -m nsl_kdd_ids.demo
+```
+
+The demo needs the generated baseline model artifacts; it does not need the
+candidate models. `--step experiment` evaluates the finalized candidate on the
+official test split for reporting, but model/threshold choices are made from
+training data only. Do not use test results to tune or select models.
 
 The full pipeline can take a few minutes, depending on the computer. K-Nearest
 Neighbors uses a deterministic, stratified sample of at most 25,000 training
@@ -266,8 +292,10 @@ artifacts/models/controlled_experiment_grouped_validation/  Audited candidate mo
 ```
 
 All metrics are measured on `KDDTest+`, not a random split of training records.
-Results should not be compared directly to scores from CIC-IDS2017: the datasets,
-attack taxonomy, feature sets, and split methodology differ.
+This sentence applies to official-test evaluation reports only: repeated and
+nested grouped-validation reports use `KDDTrain+` validation folds, not
+`KDDTest+`. Results should not be compared directly to scores from CIC-IDS2017:
+the datasets, attack taxonomy, feature sets, and split methodology differ.
 
 The historical random-row experiment writes `controlled_experiment_*` files.
 The audited grouped-validation experiment writes `reliable_experiment_report.json`,
@@ -276,17 +304,58 @@ The audited grouped-validation experiment writes `reliable_experiment_report.jso
 separately. U2R has very low support, so its measured recall has substantial
 statistical uncertainty.
 
-### Historical baseline results
+### Saved official-test evaluation results
 
-The original run on the 22,544 official test records reported binary Random
-Forest 0.765
-accuracy, 0.967 precision, and 0.608 recall. The complete two-stage system
-achieved 0.755 accuracy and 0.499 macro F1. R2L and U2R recall were especially
-low (0.020 and 0.030); these families are rare in `KDDTrain+`, and some attack
-names in `KDDTest+` do not occur in training. Refer to the `reliable_experiment`
-report for the audited grouped-validation candidate comparison; do not interpret
-the historical random-row validation score as an estimate of unseen-attack
-performance.
+The audited `reliable_experiment_report.json` evaluates the saved baseline and
+the grouped-validation candidate on the same 22,544 official test rows after
+model/threshold selection was completed using `KDDTrain+`. Values below are
+read from that report; they are dataset-specific and do not establish
+real-world performance.
+
+| Official-test metric | Baseline | Grouped candidate |
+| --- | ---: | ---: |
+| Binary accuracy | 76.50% | 82.18% |
+| Binary precision | 96.73% | 96.40% |
+| Binary attack recall | 60.77% | 71.36% |
+| Binary F1 | 74.65% | 82.01% |
+| Binary ROC-AUC | 96.25% | 96.22% |
+| Binary false-positive rate | 2.72% | 3.52% |
+| Complete-system accuracy | 75.51% | 80.37% |
+| Complete-system macro F1 | 49.89% | 57.03% |
+| Complete-system weighted F1 | 70.98% | 77.04% |
+
+Rare-family complete-system results (precision / recall / F1; support) were:
+
+| Family | Baseline | Grouped candidate |
+| --- | --- | --- |
+| R2L | 90.48% / 1.98% / 3.87%; 2,885 | 97.23% / 12.17% / 21.63%; 2,885 |
+| U2R | 50.00% / 2.99% / 5.63%; 67 | 25.00% / 5.97% / 9.64%; 67 |
+
+The candidate improved several metrics on this benchmark but increased the
+normal-traffic false-positive rate. R2L and especially U2R remain weak; U2R
+support is very small. The candidate remains separate from the production
+baseline and is not selected automatically by the demo.
+
+Training-only nested grouped validation gives a separate view of split
+variability. Across three outer folds, the inner-binary-F1 policy averaged
+92.63% attack recall (sample SD 6.00%) and 1.48% false-positive rate (SD
+0.32%); inner recall subject to a 1% validation FPR constraint averaged 91.36%
+recall (SD 7.04%) and 1.02% outer-fold FPR (SD 0.33%). The latter exceeded
+1% in one outer fold. Five-class macro F1 averaged 44.23% (SD 19.04%) and
+44.90% (SD 19.64%) respectively. One outer fold lacks Probe examples, and
+rare-family support varies. These grouped folds hold attack names and identical
+full-feature records together, but are not evidence of real-world generalization.
+
+The historical baseline-only results were binary accuracy 76.50%, precision
+96.73%, recall 60.77%, and complete-system accuracy 75.51% with macro F1
+49.89%. These values match the baseline column above; the earlier random-row
+validation score near 99.9% is not an estimate of performance on unseen attack
+names.
+
+The experiment JSON/CSV reports and model artifacts live under `artifacts/`,
+which is ignored by Git. They are preserved in the current working copy but
+are not present in a fresh clone; regenerate them using the commands in Setup
+before attempting to reproduce the artifact-dependent test suite.
 
 ## Repository structure
 
@@ -297,5 +366,6 @@ performance.
 ├── notebooks/                   Ordered exploration, training, and evaluation notebooks
 ├── tests/                       Focused data and label-mapping tests
 ├── pyproject.toml
+├── uv.lock
 └── README.md
 ```
