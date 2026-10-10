@@ -291,12 +291,13 @@ required. From the repository root, start it with:
 .\.venv\Scripts\python.exe -m nsl_kdd_ids.demo
 ```
 
-Open `http://127.0.0.1:8501` in a browser. Use **Load training sample** to
-populate the form from the first record in `dataset/NSL-KDD/KDDTrain+.txt`, or
-enter all 41 features yourself; then choose **Classify record**. The interface
-validates all values and sends one JSON record to a local endpoint, which calls
-`predict_record(..., model_config="baseline")`. Model preprocessing, selected
-features, and prediction logic remain in the shared pipeline; the interface
+Open `http://127.0.0.1:8501` in a browser. Select **Try Normal Connection**
+or **Try Attack Connection**, then choose **Analyze Connection**. The app
+selects a matching historical row using its actual label in
+`KDDTrain+.txt`, passes its 41 features through the baseline
+`predict_record` contract, and shows the predicted class separately from the
+dataset label and whether they match. Manual entry remains available under
+**Advanced: Manual Feature Entry**. The interface validates all values and
 does not offer candidate selection, file uploads, or code execution. Stop the
 server with Ctrl+C.
 
